@@ -279,7 +279,7 @@ main{margin:var(--tbh) 0 0 var(--sbw);max-width:none;min-height:calc(100vh - var
 #nav::-webkit-scrollbar{display:none}
 #nav button{flex:0 0 auto;min-width:66px;max-width:none;padding:6px 8px;font-size:11px;line-height:1.2;white-space:nowrap;gap:2px}
 #nav button svg{width:20px;height:20px}
-#nav button span{top:0;right:4px;font-size:9.5px;padding:0 5px}
+#nav button span{top:0;right:4px;font-size:9.5px;padding:0 5px}#nav{justify-content:space-between;overflow:visible}#nav button{flex:1 1 0;min-width:0;padding:6px 2px}#nav button span{right:calc(50% - 26px)}
 #toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 main{padding-bottom:92px}
 .kpi span{display:block}.kpi b{font-size:28px}
@@ -990,16 +990,16 @@ function moreSync(nv){moreClose();if(navMore()&&!V().slice(0,4).some(x=>x[0]===v
 document.addEventListener('click',e=>{if($('#more')&&!e.target.closest('#more,#nav [data-n=more]'))moreClose()},true);
 let _nm=navMore();addEventListener('resize',()=>{if(navMore()!==_nm){_nm=navMore();render()}});
 const libLocal=async(id,test)=>{if(test())return true;const t=document.getElementById(id);if(!t)return false;try{const b=Uint8Array.from(atob(t.textContent.trim()),c=>c.charCodeAt(0)),x=await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).text(),e=document.createElement('script');e.textContent=x;document.head.appendChild(e)}catch(_){return false}return !!test()};
-if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__ip=e;const b=$('#inst');if(b)b.style.display=''});
 addEventListener('appinstalled',()=>{window.__ip=null;const b=$('#inst');if(b)b.style.display='none'});
 /* ===== Supabase: login + sincronización ===== */
 const SB={url:'https://kvpgjwuloomksfprttay.supabase.co',key:'sb_publishable_xp25fqO3-sjSFs15MJAgbQ_ZH38BI5J'}; /* ← pegar acá la URL del proyecto y la clave "anon public" (ver LEEME.md) */
-const sbOn=()=>!!(SB.url&&SB.key),SK='fes_sb_sess',LK='fes_sb_last',SBX=['AL', 'E', 'H', 'M', 'PL', 'R', 'mg'];
-let sbS=null,sbBusy=false,sbT=0;try{sbS=JSON.parse(localStorage.getItem(SK))}catch(e){}
+const SB_OFF=false,sbOn=()=>!SB_OFF&&!!(SB.url&&SB.key),SK='fes_sb_sess',LK='fes_sb_last',SBX=['AL', 'E', 'H', 'M', 'PL', 'R', 'mg'];
+let sbS=null,sbBusy=false,sbT=0;sbS={anon:1,access_token:null,exp:9e15,email:'',rol:'anon'};localStorage.removeItem(SK); /* modo sin login: usa la clave publicable, sin correo ni admin */
 const sbH=(t,x)=>({apikey:SB.key,...(t?{Authorization:'Bearer '+t}:{}),'Content-Type':'application/json',...x});
 async function sbAuth(g,b){const r=await fetch(SB.url+'/auth/v1/token?grant_type='+g,{method:'POST',headers:sbH(),body:JSON.stringify(b)}),j=await r.json();if(!r.ok)throw new Error('auth '+(j.error_description||j.msg||r.status));sbS={access_token:j.access_token,refresh_token:j.refresh_token,exp:Date.now()+(j.expires_in-60)*1000,email:(j.user||{}).email||(sbS||{}).email,rol:(sbS||{}).rol};localStorage.setItem(SK,JSON.stringify(sbS))}
-async function sbTok(){if(!sbS)throw new Error('sin sesión');if(Date.now()>sbS.exp){try{await sbAuth('refresh_token',{refresh_token:sbS.refresh_token})}catch(e){if(/^auth/.test(e.message)){localStorage.removeItem(SK);sbS=null;sbLogin('La sesión venció. Ingresá de nuevo.')}throw e}}return sbS.access_token}
+async function sbTok(){if(sbS&&sbS.anon)return null;if(!sbS)throw new Error('sin sesión');if(Date.now()>sbS.exp){try{await sbAuth('refresh_token',{refresh_token:sbS.refresh_token})}catch(e){if(/^auth/.test(e.message)){localStorage.removeItem(SK);sbS=null;sbLogin('La sesión venció. Ingresá de nuevo.')}throw e}}return sbS.access_token}
 async function sbReq(p,o={}){const t=await sbTok(),r=await fetch(SB.url+'/rest/v1/'+p,{...o,headers:sbH(t,o.headers)});if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,140));return r.status===204?null:r.json().catch(()=>null)}
 const sbSnap=()=>({P:Object.fromEntries(S.P.map(p=>[p.n,JSON.stringify(p)])),C:Object.fromEntries(S.C.map(c=>[c.n,JSON.stringify(c)])),A:Object.fromEntries(S.A.map(a=>[a.id,JSON.stringify(a)])),X:Object.fromEntries(SBX.map(k=>[k,JSON.stringify(S[k]??null)]))});
 const sbMark=c=>localStorage.setItem(LK,JSON.stringify(c||sbSnap())),sbDirty=()=>JSON.stringify(sbSnap())!==localStorage.getItem(LK);
@@ -1011,21 +1011,21 @@ const ex=SBX.filter(k=>cur.X[k]!==(last.X||{})[k]).map(k=>({k,data:S[k]??null}))
 await Promise.all(J);sbMark(cur);sbRefill()}catch(e){sbSt('err',e.message)}finally{sbBusy=false}}
 const sbQ=()=>{if(sbOn()&&sbS){clearTimeout(sbT);sbT=setTimeout(sbPush,1200)}};
 async function sbSync(){if(!sbOn()||!sbS||sbBusy)return;await sbPush();sbFiles();sbRefill();if(sbDirty())return;try{await sbPull();if(!$('#md').open)render()}catch(e){sbSt('err',e.message)}}
-async function sbFirst(){const rl=await sbReq('usuarios_fes?select=rol');if(!rl||!rl.length)throw new Error('Tu usuario no tiene permisos. Pedile al administrador que te habilite.');sbS.rol=rl[0].rol;localStorage.setItem(SK,JSON.stringify(sbS));
+async function sbFirst(){
 if(!localStorage.getItem(LK)){localStorage.removeItem('fes_pool');const hasL=S.P.length||S.C.length,hasS=((await sbReq('personas?select=id&limit=1'))||[]).length;
 if(hasL&&(!hasS||confirm('Este celular tiene datos propios. ¿Subirlos al servidor? (Cancelar = descargar los del servidor y descartar los de acá)'))){sbMark({P:{},C:{},A:{},X:{}});await sbPush()}else await sbPull()}else await sbSync();sbFiles();sbRefill()}
 function sbBtn(){const b=$('#sbbtn');if(b&&sbS){b.style.display='';b.textContent='☁ '+(sbS.email||'Cuenta')+' ('+(sbS.rol||'')+') · Cerrar sesión'}}
 function sbOut(){if(confirm('Al cerrar sesión se borran los datos guardados en este celular (siguen en el servidor). ¿Seguir?')){[SK,LK,KEY,'fes_pool','fes_fq'].forEach(k=>localStorage.removeItem(k));try{indexedDB.deleteDatabase('fes_files')}catch(e){}location.reload()}}
 function sbLogin(msg){if($('#lg'))return;const d=document.createElement('div');d.id='lg';d.innerHTML='<form><b>Programa FES</b><small>Ingresá con tu usuario</small><input id="lg_e" type="email" autocomplete="username" placeholder="Correo" required><input id="lg_p" type="password" autocomplete="current-password" placeholder="Contraseña" required><p id="lg_m">'+(msg||'')+'</p><button class="btn p" type="submit">Ingresar</button></form>';document.body.appendChild(d);
 d.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=d.querySelector('button'),m=$('#lg_m');b.disabled=true;m.textContent='Ingresando…';try{await sbAuth('password',{email:$('#lg_e').value.trim(),password:$('#lg_p').value});await sbFirst();d.remove();sbBtn();render();toast('Sesión iniciada')}catch(x){localStorage.removeItem(SK);sbS=null;m.textContent=/^Tu usuario/.test(x.message)?x.message:/^auth/.test(x.message)?'Correo o contraseña incorrectos':'Sin conexión: la primera vez hace falta internet';b.disabled=false}}}
-async function sbInit(){if(!sbOn())return;addEventListener('online',sbSync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sbSync()});setInterval(()=>{if(!document.hidden)sbSync()},120000);if(!sbS)return sbLogin();sbBtn();try{await sbFirst()}catch(e){if(!/^auth|Failed|Network|Load/.test(e.message))sbSt('err',e.message)}}
+async function sbInit(){if(!sbOn())return;addEventListener('online',sbSync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sbSync()});setInterval(()=>{if(!document.hidden)sbSync()},120000);try{await sbFirst()}catch(e){if(!/^auth|Failed|Network|Load/.test(e.message))sbSt('err',e.message)}}
 /* ===== Numeración reservada en el servidor + archivos en Supabase Storage ===== */
 const POOL=()=>{try{const p=JSON.parse(localStorage.getItem('fes_pool'));return{P:p.P||[],C:p.C||[]}}catch(e){return{P:[],C:[]}}},POOLk=k=>{const p=POOL(),u=new Set((k==='P'?S.P:S.C).map(x=>x.n));p[k]=p[k].filter(i=>!u.has(i));localStorage.setItem('fes_pool',JSON.stringify(p));return p};
 const idOk=k=>{if(!(sbOn()&&sbS))return true;if(POOLk(k)[k].length)return true;sbRefill();toast('Todavía no hay numeración disponible: revisá la conexión y probá de nuevo en un momento');return false};
 const idNext=k=>{if(!(sbOn()&&sbS))return Math.max(0,...(k==='P'?S.P:S.C).map(x=>x.n))+1;const p=POOLk(k),n=p[k].shift();localStorage.setItem('fes_pool',JSON.stringify(p));if(p[k].length<4)sbRefill();return n};
 let rfBusy=false;async function sbRefill(){if(rfBusy||!sbOn()||!sbS)return;rfBusy=true;try{if(!(S.P.length||S.C.length))return;for(const[k,t]of[['P','personas'],['C','centros']]){if(POOLk(k)[k].length>=4)continue;const a=await sbReq('rpc/fes_reservar_ids',{method:'POST',body:JSON.stringify({t,n:10})}),p=POOL();for(let i=0;i<10;i++)p[k].push(a+i);localStorage.setItem('fes_pool',JSON.stringify(p))}}catch(e){}finally{rfBusy=false}}
 const FQ=()=>{try{const q=JSON.parse(localStorage.getItem('fes_fq'));return{up:q.up||[],del:q.del||[]}}catch(e){return{up:[],del:[]}}},FQr=(f,k,add)=>{const q=FQ();q[f]=q[f].filter(x=>x!==k);if(add)q[f].push(k);localStorage.setItem('fes_fq',JSON.stringify(q))};
-async function sbSto(m,id,body,type){const t=await sbTok(),r=await fetch(SB.url+'/storage/v1/object/'+(m==='GET'?'authenticated/':'')+'fes-docs/'+encodeURIComponent(id),{method:m,headers:{apikey:SB.key,Authorization:'Bearer '+t,...(body?{'Content-Type':type||'application/octet-stream','x-upsert':'true'}:{})},body});if(!r.ok){const e=new Error('sto '+r.status);e.status=r.status;throw e}return r}
+async function sbSto(m,id,body,type){const t=await sbTok(),r=await fetch(SB.url+'/storage/v1/object/'+(m==='GET'?(sbS&&sbS.anon?'public/':'authenticated/'):'')+'fes-docs/'+encodeURIComponent(id),{method:m,headers:{apikey:SB.key,...(t?{Authorization:'Bearer '+t}:{}),...(body?{'Content-Type':type||'application/octet-stream','x-upsert':'true'}:{})},body});if(!r.ok){const e=new Error('sto '+r.status);e.status=r.status;throw e}return r}
 async function fput(k,b){await fput0(k,b);if(sbOn()&&sbS){FQr('up',k,1);sbFiles()}}
 async function fget(k){const b=await fget0(k);if(b||!(sbOn()&&sbS))return b;try{const bl=await(await sbSto('GET',k)).blob();await fput0(k,bl);return bl}catch(e){return undefined}}
 async function fdel(k){await fdel0(k);if(sbOn()&&sbS){FQr('up',k);FQr('del',k,1);sbFiles()}}
