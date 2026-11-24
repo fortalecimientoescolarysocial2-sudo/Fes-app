@@ -994,7 +994,7 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))addEventLis
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__ip=e;const b=$('#inst');if(b)b.style.display=''});
 addEventListener('appinstalled',()=>{window.__ip=null;const b=$('#inst');if(b)b.style.display='none'});
 /* ===== Supabase: login + sincronización ===== */
-const SB={url:'',key:''}; /* ← pegar acá la URL del proyecto y la clave "anon public" (ver LEEME.md) */
+const SB={url:'https://kvpgjwuloomksfprttay.supabase.co',key:'sb_publishable_xp25fqO3-sjSFs15MJAgbQ_ZH38BI5J'}; /* ← pegar acá la URL del proyecto y la clave "anon public" (ver LEEME.md) */
 const sbOn=()=>!!(SB.url&&SB.key),SK='fes_sb_sess',LK='fes_sb_last',SBX=['AL', 'E', 'H', 'M', 'PL', 'R', 'mg'];
 let sbS=null,sbBusy=false,sbT=0;try{sbS=JSON.parse(localStorage.getItem(SK))}catch(e){}
 const sbH=(t,x)=>({apikey:SB.key,...(t?{Authorization:'Bearer '+t}:{}),'Content-Type':'application/json',...x});
